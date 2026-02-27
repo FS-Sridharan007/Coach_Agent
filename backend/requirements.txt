@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+ollama
+faiss-cpu
+numpy
+python-dotenv
+pydantic
