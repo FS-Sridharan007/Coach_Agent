@@ -15,11 +15,15 @@ class PlannerAgent(BaseAgent):
         Goal:
         {goal}
 
-        Select best next topic.
+        Select ONLY ONE topic name.
+        Return only the topic.
+        No explanation.
         """
 
-        topic = super().run(prompt)
+        raw_output = super().run(prompt)
 
-        print("Planner Agent Done")
+        topic = raw_output.split("\n")[0].strip()
+
+        print(f"[Planner Agent] Selected Topic: {topic}")
 
         return topic

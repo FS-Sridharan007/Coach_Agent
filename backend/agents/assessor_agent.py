@@ -8,10 +8,13 @@ class AssessorAgent(BaseAgent):
 
     def run(self, topic):
 
-        prompt = f"Create 3 quiz questions on {topic}"
+        prompt = f"""
+        Create 3 short answer quiz questions on {topic}.
+        Return them in numbered format.
+        """
 
         quiz = super().run(prompt)
 
-        print("Assessor Agent Done")
+        print("[Assessor Agent] Quiz Generated")
 
         return quiz

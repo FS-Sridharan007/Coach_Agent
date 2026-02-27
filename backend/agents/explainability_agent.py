@@ -6,12 +6,19 @@ class ExplainabilityAgent(BaseAgent):
     def __init__(self):
         super().__init__("Explainability Agent")
 
-    def run(self, topic):
+    def run(self, topic, score):
 
-        prompt = f"Explain why {topic} is important in learning."
+        prompt = f"""
+        Topic: {topic}
+        Student Score: {score}
+
+        Explain why this topic was selected
+        and why next action was taken.
+        Keep explanation short and clear.
+        """
 
         explanation = super().run(prompt)
 
-        print("Explainability Agent Done")
+        print("[Explainability Agent] Decision Explained")
 
         return explanation
