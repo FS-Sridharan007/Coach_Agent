@@ -9,21 +9,30 @@ class PlannerAgent(BaseAgent):
     def run(self, profile, goal):
 
         prompt = f"""
-        Student profile:
-        {profile}
-
-        Goal:
-        {goal}
-
-        Select ONLY ONE topic name.
-        Return only the topic.
+        You are a strict academic planner.
+        profile: {profile}
+    
+        Goal: {goal}
+    
+        Choose one topic strictly related to the goal.
+        Choose only from:
+        - Linear Algebra
+        - Linear Regression
+        - Gradient Descent
+        - Vectors
+        - Matrices
+    
+        Return ONLY the topic name.
         No explanation.
+        No sentences.
+        Just the topic.
         """
-
-        raw_output = super().run(prompt)
-
+    
+        raw_output = super().run(prompt).strip()
+    
+        # Force clean extraction
         topic = raw_output.split("\n")[0].strip()
-
+    
         print(f"[Planner Agent] Selected Topic: {topic}")
-
+    
         return topic

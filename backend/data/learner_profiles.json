@@ -8,10 +8,40 @@
     "sridharan": {
         "skills": {
             "Exciting! Let's plan the student's learning journey towards machine learning.\n\nTo select the best next topic, I'll analyze the student's current profile and goal. Since the student has no prior skills or history, we can start from a foundational level. Considering the goal is Machine Learning, we should aim for topics that lay a solid groundwork in mathematics and programming.\n\nI recommend the following next topic:\n\n**Topic:** Linear Algebra\n\n**Why:**\n\n1. **Foundational importance**: Linear Algebra provides a strong foundation for many machine learning algorithms. Understanding concepts like vector spaces, matrices, and tensor operations is crucial for working with neural networks and other ML models.\n2. **Mathematical basis**: Machine learning relies heavily on mathematical concepts, and Linear Algebra is an essential part of this mathematical foundation. By grasping linear algebra, the student will develop a deeper understanding of mathematical structures that are used throughout machine learning.\n3. **Transferable skills**: The problem-solving strategies and analytical thinking developed through studying Linear Algebra can be applied to other areas of mathematics and programming, making it a valuable skillset for the student.\n\nBy starting with Linear Algebra, we'll set the stage for future topics that build upon these foundational concepts.": 50,
-            "Linear Algebra": 50,
+            "Linear Algebra": 0,
             "**Linear Algebra**": 0,
-            "\"Linear Algebra\"": 0
+            "\"Linear Algebra\"": 0,
+            "'Linear Algebra'": 50
         },
-        "history": []
+        "history": [
+            {
+                "topic": "Linear Algebra",
+                "score": 0,
+                "time": "2026-02-28 09:47:11.066812"
+            }
+        ]
+    },
+    "Sridharan": {
+        "skills": {
+            "I'd be happy to help you with that!": 20,
+            "Linear Regression": 33
+        },
+        "history": [
+            {
+                "topic": "I'd be happy to help you with that!",
+                "score": 20,
+                "time": "2026-02-28 10:06:45.934125"
+            },
+            {
+                "topic": "Linear Regression",
+                "score": 40,
+                "time": "2026-02-28 10:42:43.583027"
+            },
+            {
+                "topic": "Linear Regression",
+                "score": 33,
+                "time": "2026-02-28 10:48:43.711444"
+            }
+        ]
     }
 }

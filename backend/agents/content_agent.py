@@ -9,16 +9,14 @@ class ContentAgent(BaseAgent):
 
     def run(self, topic):
 
-        knowledge = retrieve(topic)
-
         prompt = f"""
-        Explain clearly:
-
-        {knowledge}
+        Explain the topic: {topic}
+        in context of Machine Learning.
+        Keep explanation educational and relevant.
         """
-
+    
         lesson = super().run(prompt)
-
-        print("Content Agent Done")
-
+    
+        print("[Content Agent] Lesson Generated")
+    
         return lesson
