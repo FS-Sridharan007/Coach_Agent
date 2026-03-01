@@ -2,43 +2,184 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Play, RotateCcw, CheckCircle, Loader2, ChevronRight } from 'lucide-react'
 
+// ---- Backend connection (no backend changes needed) ----
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+async function startSession(studentId, goal) {
+  const res = await fetch(`${API_BASE}/start-session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ student_id: studentId, goal }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(text || `Start session failed with ${res.status}`)
+  }
+  return res.json()
+}
+
+async function submitAnswers(studentId, answers) {
+  const res = await fetch(`${API_BASE}/submit-answers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ student_id: studentId, answers }),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(text || `Submit answers failed with ${res.status}`)
+  }
+  return res.json()
+}
+
+// ---- UI pipeline definition (labels/icons stay mostly the same) ----
 const STEPS = [
-  { agent: 'Profiler Agent', tag: 'A-01', icon: '👤', action: 'Loading learner profile…', output: 'Profile: Sridharan | Goal: Machine Learning | Skills: {Linear Regression: 20}' },
-  { agent: 'Planner Agent', tag: 'A-02', icon: '🗺️', action: 'Selecting next topic…', output: 'Selected Topic: Gradient Descent' },
-  { agent: 'Content Agent', tag: 'A-03', icon: '📚', action: 'Generating lesson via LLaMA3…', output: 'Lesson: Gradient Descent is an optimization algorithm used to minimize a loss function by iteratively moving in the direction of steepest descent…' },
-  { agent: 'Assessor Agent', tag: 'A-04', icon: '📝', action: 'Creating quiz questions…', output: 'Q1: What is the role of learning rate in Gradient Descent?\nQ2: What happens when learning rate is too large?\nQ3: Explain the difference between batch and stochastic GD.' },
-  { agent: 'Evaluator Agent', tag: 'A-05', icon: '⚖️', action: 'Evaluating student answers…', output: 'Score: 65 / 100\nFeedback: Good understanding of learning rate. Improve explanation of stochastic variants.' },
-  { agent: 'Progress Agent', tag: 'A-06', icon: '📈', action: 'Analyzing session history…', output: 'Progress: Improving from 20→65. Weak: Linear Regression. Suggestion: revisit regression fundamentals.' },
-  { agent: 'Motivation Agent', tag: 'A-07', icon: '⚡', action: 'Generating motivation message…', output: '🔥 Great improvement! You jumped from 20 to 65. Keep building on this momentum — Gradient Descent mastery unlocks Neural Networks!' },
-  { agent: 'Explainability Agent', tag: 'A-08', icon: '🔍', action: 'Explaining pedagogical decision…', output: 'Gradient Descent was selected because Linear Algebra/Regression are foundational prerequisites now met. Score of 65 unlocks advanced topics.' },
-  { agent: 'Tracker Agent', tag: 'A-09', icon: '🔄', action: 'Logging session data…', output: 'Logged: Sridharan → Gradient Descent → Score: 65 → 2026-03-01 18:30' },
+  {
+    agent: 'Profiler Agent',
+    tag: 'A-01',
+    icon: '👤',
+    action: 'Loading learner profile…',
+    defaultOutput:
+      'Profile loaded from learner model JSON store for the given student_id.',
+  },
+  {
+    agent: 'Planner Agent',
+    tag: 'A-02',
+    icon: '🗺️',
+    action: 'Selecting next topic…',
+    defaultOutput: 'Selected Topic: Gradient Descent',
+  },
+  {
+    agent: 'Content Agent',
+    tag: 'A-03',
+    icon: '📚',
+    action: 'Generating lesson via LLaMA3…',
+    defaultOutput:
+      'Lesson: Gradient Descent is an optimization algorithm used to minimize a loss function…',
+  },
+  {
+    agent: 'Assessor Agent',
+    tag: 'A-04',
+    icon: '📝',
+    action: 'Creating quiz questions…',
+    defaultOutput:
+      'Q1, Q2, Q3 about the selected topic will appear here once session is started.',
+  },
+  {
+    agent: 'Evaluator Agent',
+    tag: 'A-05',
+    icon: '⚖️',
+    action: 'Evaluating student answers…',
+    defaultOutput: 'Score and feedback from evaluator agent will appear here.',
+  },
+  {
+    agent: 'Progress Agent',
+    tag: 'A-06',
+    icon: '📈',
+    action: 'Analyzing session history…',
+    defaultOutput: 'Progress summary and weak areas will appear here.',
+  },
+  {
+    agent: 'Motivation Agent',
+    tag: 'A-07',
+    icon: '⚡',
+    action: 'Generating motivation message…',
+    defaultOutput: 'Personalized motivational message will appear here.',
+  },
+  {
+    agent: 'Explainability Agent',
+    tag: 'A-08',
+    icon: '🔍',
+    action: 'Explaining pedagogical decision…',
+    defaultOutput: 'Explanation of topic choice and next action will appear here.',
+  },
+  {
+    agent: 'Tracker Agent',
+    tag: 'A-09',
+    icon: '🔄',
+    action: 'Logging session data…',
+    defaultOutput: 'Tracker logs student_id, topic and score for this session.',
+  },
 ]
 
 export default function SessionSimulator() {
-  const [running, setRunning] = useState(false)
+  // Basic session info
+  const [studentId, setStudentId] = useState('Sridharan')
+  const [goal, setGoal] = useState('Machine Learning')
+
+  // Backend data
+  const [startResult, setStartResult] = useState(null) // { topic, lesson, quiz }
+  const [submitResult, setSubmitResult] = useState(null) // { score, feedback, ... } or { error }
+
+  // Answers typed by user
+  const [answers, setAnswers] = useState('')
+
+  // UI state
   const [step, setStep] = useState(-1)
   const [done, setDone] = useState(false)
+  const [loadingPhase, setLoadingPhase] = useState(null) // 'start' | 'submit' | null
+  const [error, setError] = useState('')
 
-  const runSimulation = async () => {
-    if (running) return
-    setRunning(true)
+  const handleStartSession = async () => {
+    if (loadingPhase) return
+    setError('')
     setDone(false)
+    setSubmitResult(null)
+    setAnswers('')
     setStep(-1)
 
-    for (let i = 0; i < STEPS.length; i++) {
-      await new Promise((r) => setTimeout(r, 800))
-      setStep(i)
+    try {
+      setLoadingPhase('start')
+      const data = await startSession(studentId.trim(), goal.trim())
+      setStartResult(data)
+      // Visually mark first 4 agents as completed
+      setStep(3)
+    } catch (e) {
+      setError(e.message || 'Failed to start session')
+      setStartResult(null)
+      setStep(-1)
+    } finally {
+      setLoadingPhase(null)
+    }
+  }
+
+  const handleSubmitAnswers = async () => {
+    if (loadingPhase) return
+    if (!startResult) {
+      setError('Start a session first before submitting answers.')
+      return
+    }
+    if (!answers.trim()) {
+      setError('Please enter your answers before submitting.')
+      return
     }
 
-    await new Promise((r) => setTimeout(r, 600))
-    setRunning(false)
-    setDone(true)
+    setError('')
+
+    try {
+      setLoadingPhase('submit')
+      const data = await submitAnswers(studentId.trim(), answers.trim())
+      setSubmitResult(data)
+
+      if (!data.error) {
+        // Visually mark all 9 agents as completed
+        setStep(8)
+        setDone(true)
+      }
+    } catch (e) {
+      setError(e.message || 'Failed to submit answers')
+    } finally {
+      setLoadingPhase(null)
+    }
   }
 
   const reset = () => {
-    setRunning(false)
+    setStartResult(null)
+    setSubmitResult(null)
+    setAnswers('')
     setStep(-1)
     setDone(false)
+    setError('')
+    setLoadingPhase(null)
   }
 
   return (
@@ -61,58 +202,126 @@ export default function SessionSimulator() {
             Session <span className="text-teal-glow">Simulator</span>
           </h2>
           <p className="text-muted max-w-xl leading-relaxed">
-            Watch the full agent pipeline execute in real-time — step by step, from profiling
-            to motivation.
+            Watch the full agent pipeline execute end-to-end — now backed by the real FastAPI
+            backend.
           </p>
         </motion.div>
 
-        {/* Control Bar */}
-        <div className="flex items-center gap-4 mb-8">
-          <button
-            onClick={runSimulation}
-            disabled={running}
-            className={`flex items-center gap-3 px-8 py-4 font-display text-sm tracking-widest transition-all duration-300 ${
-              running
-                ? 'bg-muted/20 text-muted cursor-not-allowed border border-border'
-                : 'bg-teal-glow text-void hover:bg-teal-mid hover:shadow-[0_0_30px_#00e5c860] border border-teal-glow'
-            }`}
-          >
-            {running ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Running...
-              </>
-            ) : done ? (
-              <>
-                <Play className="w-4 h-4" />
-                Run Again
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4" />
-                Run Session
-              </>
-            )}
-          </button>
+        {/* Control Bar + Session Inputs */}
+        <div className="flex flex-col gap-4 mb-8">
+          {/* Inputs */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex flex-col gap-1">
+              <label className="font-mono text-xs text-muted tracking-widest uppercase">
+                Student ID
+              </label>
+              <input
+                value={studentId}
+                onChange={(e) => setStudentId(e.target.value)}
+                className="bg-panel border border-border text-dim px-3 py-2 text-sm outline-none focus:border-teal-glow/60"
+                placeholder="e.g. Sridharan"
+              />
+            </div>
+            <div className="flex flex-col gap-1 md:col-span-2">
+              <label className="font-mono text-xs text-muted tracking-widest uppercase">
+                Goal
+              </label>
+              <input
+                value={goal}
+                onChange={(e) => setGoal(e.target.value)}
+                className="bg-panel border border-border text-dim px-3 py-2 text-sm outline-none focus:border-teal-glow/60"
+                placeholder="e.g. Machine Learning"
+              />
+            </div>
+          </div>
 
-          {(step >= 0 || done) && (
+          {/* Buttons + step counter */}
+          <div className="flex flex-wrap items-center gap-4">
             <button
-              onClick={reset}
-              className="flex items-center gap-2 px-4 py-4 border border-border text-muted hover:border-teal-glow/30 hover:text-dim transition-all duration-200 font-mono text-sm"
+              onClick={handleStartSession}
+              disabled={loadingPhase === 'start'}
+              className={`flex items-center gap-3 px-8 py-4 font-display text-sm tracking-widest transition-all duration-300 ${
+                loadingPhase === 'start'
+                  ? 'bg-muted/20 text-muted cursor-not-allowed border border-border'
+                  : 'bg-teal-glow text-void hover:bg-teal-mid hover:shadow-[0_0_30px_#00e5c860] border border-teal-glow'
+              }`}
             >
-              <RotateCcw className="w-4 h-4" />
-              Reset
+              {loadingPhase === 'start' ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Starting…
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4" />
+                  Start Session
+                </>
+              )}
             </button>
-          )}
 
-          {step >= 0 && (
-            <div className="ml-auto font-mono text-xs text-muted">
-              <span className="text-teal-glow">{Math.min(step + 1, STEPS.length)}</span>
-              {' / '}
-              {STEPS.length}
+            <button
+              onClick={handleSubmitAnswers}
+              disabled={loadingPhase === 'submit'}
+              className={`flex items-center gap-3 px-6 py-4 font-display text-sm tracking-widest transition-all duration-300 border ${
+                loadingPhase === 'submit'
+                  ? 'bg-muted/20 text-muted cursor-not-allowed border-border'
+                  : 'border-amber-glow/60 text-amber-glow hover:bg-amber-glow/10'
+              }`}
+            >
+              {loadingPhase === 'submit' ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Submitting…
+                </>
+              ) : (
+                <>
+                  <Play className="w-4 h-4" />
+                  Submit Answers
+                </>
+              )}
+            </button>
+
+            {(step >= 0 || done) && (
+              <button
+                onClick={reset}
+                className="flex items-center gap-2 px-4 py-4 border border-border text-muted hover:border-teal-glow/30 hover:text-dim transition-all duration-200 font-mono text-sm"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Reset
+              </button>
+            )}
+
+            {step >= 0 && (
+              <div className="ml-auto font-mono text-xs text-muted">
+                <span className="text-teal-glow">{Math.min(step + 1, STEPS.length)}</span>
+                {' / '}
+                {STEPS.length}
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="text-xs font-mono text-red-400 bg-red-500/10 border border-red-500/30 px-3 py-2">
+              {error}
             </div>
           )}
         </div>
+
+        {/* Answers input (only after session started) */}
+        {startResult && (
+          <div className="mb-8 border border-border bg-panel p-4">
+            <div className="font-mono text-xs text-muted tracking-widest uppercase mb-2">
+              Student Answers
+            </div>
+            <textarea
+              value={answers}
+              onChange={(e) => setAnswers(e.target.value)}
+              rows={4}
+              className="w-full bg-surface border border-border text-dim px-3 py-2 text-sm outline-none focus:border-teal-glow/60 resize-vertical"
+              placeholder="Type your answers to the quiz here before submitting…"
+            />
+          </div>
+        )}
 
         {/* Pipeline Steps */}
         <div className="border border-border bg-surface overflow-hidden">
@@ -129,7 +338,46 @@ export default function SessionSimulator() {
           <div className="divide-y divide-border/50">
             {STEPS.map((s, i) => {
               const state =
-                i < step ? 'done' : i === step ? 'active' : 'waiting'
+                step < 0 ? 'waiting' : i < step ? 'done' : i === step ? 'active' : 'waiting'
+
+              // Map backend data into the step outputs
+              let output = s.defaultOutput
+
+              if (startResult) {
+                if (i === 1 && startResult.topic) {
+                  output = `Selected Topic: ${startResult.topic}`
+                }
+                if (i === 2 && startResult.lesson) {
+                  output = startResult.lesson
+                }
+                if (i === 3 && startResult.quiz) {
+                  output = startResult.quiz
+                }
+              }
+
+              if (submitResult) {
+                if (submitResult.error && i >= 4) {
+                  output = submitResult.error
+                } else if (!submitResult.error) {
+                  if (i === 4 && typeof submitResult.score !== 'undefined') {
+                    output = `Score: ${submitResult.score} / 100\n\n${submitResult.feedback ?? ''}`
+                  }
+                  if (i === 5 && submitResult.progress_report) {
+                    output = submitResult.progress_report
+                  }
+                  if (i === 6 && submitResult.motivation) {
+                    output = submitResult.motivation
+                  }
+                  if (i === 7 && submitResult.explanation) {
+                    output = submitResult.explanation
+                  }
+                  if (i === 8 && typeof submitResult.score !== 'undefined') {
+                    output = `Logged: ${studentId} → ${
+                      startResult?.topic || 'N/A'
+                    } → Score: ${submitResult.score}`
+                  }
+                }
+              }
 
               return (
                 <motion.div
@@ -191,7 +439,7 @@ export default function SessionSimulator() {
                             className="mt-2 p-3 bg-panel border border-border/60 font-mono text-xs text-dim leading-relaxed whitespace-pre-line"
                           >
                             <span className="text-teal-glow/40 mr-2">{'>'}</span>
-                            {s.output}
+                            {output}
                           </motion.div>
                         )}
                       </AnimatePresence>
@@ -212,9 +460,9 @@ export default function SessionSimulator() {
               >
                 <CheckCircle className="w-5 h-5 text-teal-glow" />
                 <span className="font-mono text-sm text-teal-glow">
-                  Session complete — all 9 agents executed successfully
+                  Session complete — all 9 agents executed successfully via backend
                 </span>
-                <span className="ml-auto font-mono text-xs text-muted">7.2s</span>
+                <span className="ml-auto font-mono text-xs text-muted">live</span>
               </motion.div>
             )}
           </AnimatePresence>
